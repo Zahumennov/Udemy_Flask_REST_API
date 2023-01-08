@@ -19,3 +19,5 @@ twilio==7.15.3
 urllib3==1.26.12
 webargs==8.2.0
 Werkzeug==2.2.2
+sqlalchemy
+flask-sqlalchemy
