@@ -1,3 +1,6 @@
+import os
+
+import requests
 from flask.views import MethodView
 from flask_smorest import Blueprint, abort
 from passlib.hash import pbkdf2_sha256
@@ -6,21 +9,39 @@ from flask_jwt_extended import create_access_token, create_refresh_token, get_jw
 from blocklist import BLOCKLIST
 from db import db
 from models import UserModel
-from schemas import UserSchema
+from schemas import UserSchema, UserRegisterSchema
 
 blp = Blueprint("Users", "users", description="Operations on users")
 
 
+def send_simple_message(to, subject, body):
+    domain = os.getenv("MAILGUN_DOMAIN")
+    return requests.post(
+        f"https://api.mailgun.net/v3/{domain}/messages",
+        auth=("api", os.getenv("MAILGUN_API_KEY")),
+        data={"from": f"Excited User <mailgun@{domain}>",
+              "to": [to],
+              "subject": subject,
+              "text": body})
+
+
 @blp.route("/register")
 class UserRegister(MethodView):
-    @blp.arguments(UserSchema)
+    @blp.arguments(UserRegisterSchema)
     def post(self, user_data):
         user = UserModel(
             username=user_data["username"],
+            email=user_data["email"],
             password=pbkdf2_sha256.hash(user_data["password"])
         )
         db.session.add(user)
         db.session.commit()
+
+        send_simple_message(
+            to=user.email,
+            subject={"Successfully signed up"},
+            body=f"Hi {user.username}! You have successfully sign up to the Store REST API."
+        )
 
         return {"message": "User created successfully."}, 201
 
@@ -44,7 +65,7 @@ class UserRegister(MethodView):
 @blp.route("/refresh")
 class TokenRefresh(MethodView):
     @jwt_required(refresh=True)
-    def post(self,):
+    def post(self, ):
         current_user = get_jwt_identity()
         new_token = create_access_token(identity=current_user, fresh=False)
         return {"access_token": new_token}
