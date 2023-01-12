@@ -21,3 +21,5 @@ webargs==8.2.0
 Werkzeug==2.2.2
 sqlalchemy
 flask-sqlalchemy
+flask-jwt-extended
+passlib
